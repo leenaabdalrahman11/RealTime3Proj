@@ -235,6 +235,7 @@ Member create_new_member(int id, int gang_id, int rank) {
 
 
 void create_gang(int gang_id, int semid, SharedData* shared_data) {
+    printf("SSSSSSSSSSSSSSSSSSSSSSSSSSS\n");
     int successful_local = 0;
     int failed_local = 0;
     int pending_replacements = 0;
@@ -251,16 +252,9 @@ void create_gang(int gang_id, int semid, SharedData* shared_data) {
 
         printf("🔁 Gang %d released! Starting a new target cycle.\n", gang_id + 1);
     }
-
-
     while (1) {
-
-
-// تصفير عدد البدائل للمرة التالية
         pending_replacements = 0;
-
         srand(time(NULL) + getpid());
-
         int member_count = config.min_members + rand() % (config.max_members - config.min_members + 1);
         printf("🚩 Gang %d: Creating %d members\n", gang_id + 1, member_count);
 
@@ -297,7 +291,7 @@ void create_gang(int gang_id, int semid, SharedData* shared_data) {
             args[i].member.rank = rank_range - 1 - (i * rank_range / member_count);
             if (args[i].member.rank < 0) args[i].member.rank = 0;
         }
-
+       // printf("mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm");
         // 2️⃣ إضافة الأعضاء البدلاء
         for (int i = 0; i < pending_replacements; i++) {
             int new_id = member_count + i;
@@ -311,7 +305,6 @@ void create_gang(int gang_id, int semid, SharedData* shared_data) {
 
         member_count += pending_replacements;
         pending_replacements = 0;
-
         // 3️⃣ اختيار الهدف والقائد
         int leader_is_agent = 0;
         for (int i = 0; i < member_count; i++) {

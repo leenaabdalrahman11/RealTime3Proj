@@ -13,7 +13,8 @@
 #include "ipc.h" // تأكد أنك ضايفها
 int msgid;  // التعريف الرئيسي للمُتغير
 int* gang_in_prison;  // 👈 هذا هو التعريف الرسمي
-extern void start_police_monitoring(SharedData* shared_data, int semid);
+extern void police_process(int msgid, SharedData* shared_data); // دالة في police.c
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         fprintf(stderr, "Usage: %s config.txt\n", argv[0]);
@@ -44,12 +45,23 @@ int main(int argc, char* argv[]) {
             exit(EXIT_SUCCESS);
         }
     }
+    printf("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\n");
+    // تشغيل الشرطة كبروسيس مستقل
+    pid_t police_pid = fork();
+    if (police_pid == 0) {
+        printf("pppppppppppppppppppppppppppppppppppppppp");
+        police_process(msgid, shared_data);
+        exit(EXIT_SUCCESS);
+    }
+
 
     // انتظار جميع العصابات
     for (int i = 0; i < config.number_of_gangs; i++) {
         wait(NULL);
     }
-
+    // انتظار بروسيس الشرطة
+ //   waitpid(police_pid, NULL, 0);
+    
     int total_knowledge = 0;
 
 
@@ -61,33 +73,6 @@ int main(int argc, char* argv[]) {
     int total_reports = 0;
 
 
-    // int total_reports = 0;
-    AgentReport r;
-    printf("🚓 Police is collecting reports:\n");
-
-    while (receive_agent_report(msgid, &r) != -1) {
-        if (total_reports >= config.max_reports) break;
-
-        all_reports[total_reports++] = r;
-
-        printf("📝 Report from Agent %d (Gang %d): Suspicion=%d, Knowledge=%d, Alert=%s\n",
-               r.member_id + 1, r.gang_id + 1, r.suspicion_level, r.knowledge_level,
-               r.is_alert ? "YES" : "NO");
-
-        if (r.is_alert) {
-            gang_alerts[r.gang_id]++;
-        }
-    }
-    for (int i = 0; i < config.number_of_gangs; i++) {
-        if (gang_alerts[i] >= config.police_action_threshold) {
-            printf("🚔 Police takes action against Gang %d! (%d alerts)\n", i + 1, gang_alerts[i]);
-
-            gang_in_prison[i] = config.prison_duration;
-            printf("⛓️ Gang %d is now in prison for %d seconds.\n", i + 1, config.prison_duration);
-        } else {
-            printf("🟡 Gang %d under monitoring: %d alerts (below threshold).\n", i + 1, gang_alerts[i]);
-        }
-    }
     destroy_message_queue(msgid);
     int terminate_due_to = 0;
     if (shared_data->failed_plans >= config.max_failed_plans) {
@@ -103,6 +88,8 @@ int main(int argc, char* argv[]) {
         printf("💀 Simulation ends: Too many agents exposed (%d >= %d)\n",
                shared_data->captured_agents, config.max_captured_agents);
     }
+    // انتظار بروسيس الشرطة
+    //waitpid(police_pid, NULL, 0);
 
 
     if (terminate_due_to > 0) {

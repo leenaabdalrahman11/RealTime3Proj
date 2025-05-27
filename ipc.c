@@ -21,7 +21,8 @@ void send_agent_report(int msgid, AgentReport* report) {
     }
 }
 int receive_agent_report(int msgid, AgentReport* report) {
-    return msgrcv(msgid, report, sizeof(AgentReport) - sizeof(long), 1, IPC_NOWAIT);
+    return msgrcv(msgid, report, sizeof(AgentReport) - sizeof(long), 1, 0);
+
 }
 
 void destroy_message_queue(int msgid) {
