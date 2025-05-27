@@ -16,6 +16,8 @@ int* gang_in_prison;  // 👈 هذا هو التعريف الرسمي
 extern void police_process(int msgid, SharedData* shared_data); // دالة في police.c
 
 int main(int argc, char* argv[]) {
+
+
     if (argc != 2) {
         fprintf(stderr, "Usage: %s config.txt\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -25,7 +27,7 @@ int main(int argc, char* argv[]) {
     int semid = create_semaphore();
     SharedData* shared_data = (SharedData*) attach_shared_memory(shmid);
     msgid = create_message_queue();
-
+    shared_data->stop_simulation_flag = 0;
     read_config(argv[1]);
 
     // تهيئة الذاكرة المشتركة
@@ -77,20 +79,22 @@ int main(int argc, char* argv[]) {
     int terminate_due_to = 0;
     if (shared_data->failed_plans >= config.max_failed_plans) {
         terminate_due_to = 1;
+        shared_data->stop_simulation_flag = 1;
+
         printf("❌ Simulation ends: Too many failed plans (%d >= %d)\n",
                shared_data->failed_plans, config.max_failed_plans);
     } else if (shared_data->successful_plans >= config.max_successful_plans) {
         terminate_due_to = 2;
+        shared_data->stop_simulation_flag = 1;
+
         printf("✅ Simulation ends: Gangs succeeded too much (%d >= %d)\n",
                shared_data->successful_plans, config.max_successful_plans);
     } else if (shared_data->captured_agents >= config.max_captured_agents) {
         terminate_due_to = 3;
+        shared_data->stop_simulation_flag = 1;
         printf("💀 Simulation ends: Too many agents exposed (%d >= %d)\n",
                shared_data->captured_agents, config.max_captured_agents);
     }
-    // انتظار بروسيس الشرطة
-    //waitpid(police_pid, NULL, 0);
-
 
     if (terminate_due_to > 0) {
         printf("🎯 Simulation terminated due to condition #%d.\n", terminate_due_to);

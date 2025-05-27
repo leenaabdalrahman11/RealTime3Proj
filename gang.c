@@ -8,6 +8,9 @@
 #include "gang.h"
 #include "config.h"
 #include "shared_memory.h"
+#include "police.h"
+
+#include <sys/msg.h>
 #include "ipc.h"
 
 const char* TARGETS[] = {
@@ -21,71 +24,12 @@ const char* TARGETS[] = {
 };
 
 #define NUM_TARGETS (sizeof(TARGETS) / sizeof(TARGETS[0]))
-/*
-void investigate_members(Member* members, int count, int semid, SharedData* shared_data, int* pending_replacements){
-    for (int i = count - 1; i >= 0; i--) {
-        Member* m = &members[i];
-
-        if (m->is_secret_agent) {
-            //int chance = rand() % 100;
-            int chance =40;
-            if (chance < 50) { // نسبة الشك مثلاً 50%
-                printf("🚨 Gang discovered Agent %d in Rank %d! Eliminating...\n", m->id, m->rank);
-                semaphore_wait(semid);
-                shared_data->captured_agents++;
-                semaphore_signal(semid);
-
-                m->executed = 1;
-                // ⚠️ فقط عدّ عدد الأعضاء الذين يجب استبدالهم في الجولة القادمة
-                (*pending_replacements)++;
-                printf("💀 Agent %d in Gang %d has been EXECUTED immediately!\n",
-                       m->id + 1, m->gang_id + 1);
-                shared_data->captured_agents++;
-
-                printf("🔄 Replacing Agent %d in Gang %d...\n", m->id, m->gang_id);
-            }
-        }
-    }
-}
-*/
-/*
-void investigate_members(ThreadArg* args, int count, int semid, SharedData* shared_data, int* pending_replacements){
-    for (int i = count - 1; i >= 0; i--) {
-        Member* m = &args[i].member;
-
-
-        if (m->is_secret_agent) {
-            int chance = rand() % 100;
-            if (chance < 50) {
-                printf("🚨 Gang discovered Agent %d in Gang %d (Rank: %d)! Eliminating...\n",
-                       m->id + 1, m->gang_id + 1, m->rank);
-
-                semaphore_wait(semid);
-                shared_data->captured_agents++;
-                semaphore_signal(semid);
-
-                m->executed = 1;
-                (*pending_replacements)++;
-                printf("💀 Agent %d in Gang %d has been EXECUTED immediately!\n",
-                       (int)m->id, (int)m->gang_id);
-                printf("🛠️ DEBUG >> m pointer: %p | id: %d | gang: %d | executed: %d\n",
-                       (void*)m, m->id + 1, m->gang_id + 1, m->executed);
-
-
-                printf("🔄 Replacing Agent %d in Gang %d...\n", m->id + 1, m->gang_id + 1);
-            }
-        }
-    }
-}
-*/
 void investigate_members(ThreadArg* args, int count, int semid, SharedData* shared_data, int* pending_replacements){
 for (int i = count - 1; i >= 0; i--) {
     Member* m = &args[i].member;
 
-
-
-if (m->is_secret_agent) {
-int chance = rand() % 100;
+    if (m->is_secret_agent) {
+       int chance = rand() % 100;
 if (chance < 50) {
 printf("🚨 Gang discovered Agent %d in Gang %d (Rank: %d)! Eliminating...\n",
 m->id + 1, m->gang_id + 1, m->rank);
@@ -107,7 +51,15 @@ printf("🔄 Replacing Agent %d in Gang %d...\n", m->id + 1, m->gang_id + 1);
 }
 }
 }
-
+void wait_for_prison_release(int msgid, int gang_id) {
+    PoliceMessage pm;
+    ssize_t ret = msgrcv(msgid, &pm, sizeof(PoliceMessage) - sizeof(long), gang_id + 10, IPC_NOWAIT);
+    if (ret != -1) {
+        printf("⛓️ Gang %d arrested for %d seconds!\n", gang_id + 1, pm.prison_time);
+        sleep(pm.prison_time);
+        printf("🔓 Gang %d released and resuming operations.\n", gang_id + 1);
+    }
+}
 void* member_thread(void* arg) {
     ThreadArg* t = (ThreadArg*)arg;
     Member* m = &t->member;
@@ -240,19 +192,17 @@ void create_gang(int gang_id, int semid, SharedData* shared_data) {
     int failed_local = 0;
     int pending_replacements = 0;
 
-    if (gang_in_prison[gang_id] > 0) {
-        printf("⛓️ Gang %d is in prison, waiting %d seconds...\n", gang_id + 1, gang_in_prison[gang_id]);
-        sleep(gang_in_prison[gang_id]);
-        gang_in_prison[gang_id] = 0;
-    }
+/*
     if (gang_in_prison[gang_id] > 0) {
         printf("⛓️ Gang %d is in prison, waiting %d seconds...\n", gang_id + 1, gang_in_prison[gang_id]);
         sleep(gang_in_prison[gang_id]);
         gang_in_prison[gang_id] = 0;
 
         printf("🔁 Gang %d released! Starting a new target cycle.\n", gang_id + 1);
-    }
+    }*/
     while (1) {
+        wait_for_prison_release(msgid, gang_id);
+
         pending_replacements = 0;
         srand(time(NULL) + getpid());
         int member_count = config.min_members + rand() % (config.max_members - config.min_members + 1);

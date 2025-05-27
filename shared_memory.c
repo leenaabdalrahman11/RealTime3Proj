@@ -1,5 +1,4 @@
 // shared_memory.c
-
 #include "shared_memory.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,7 +14,6 @@ int create_shared_memory() {
     }
     return shmid;
 }
-
 void* attach_shared_memory(int shmid) {
     void* ptr = shmat(shmid, NULL, 0);
     if (ptr == (void*)-1) {
@@ -24,7 +22,6 @@ void* attach_shared_memory(int shmid) {
     }
     return ptr;
 }
-
 void detach_shared_memory(void* shm_ptr) {
     shmdt(shm_ptr);
 }

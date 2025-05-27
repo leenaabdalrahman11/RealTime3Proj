@@ -11,6 +11,9 @@ typedef struct {
     int successful_plans;
     int failed_plans;
     int captured_agents;
+    volatile int stop_simulation_flag;  // علم إشارة لإنهاء المحاكاة
+
+
 } SharedData;
 
 #define SHM_KEY 0x1364

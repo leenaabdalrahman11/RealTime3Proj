@@ -1,8 +1,11 @@
-//
-// Created by leena on 5/27/2025.
-//
+// police.h
+#ifndef POLICE_H
+#define POLICE_H
 
-#ifndef NEW_FOLDER_2_POLICE_H
-#define NEW_FOLDER_2_POLICE_H
+typedef struct {
+    long mtype;       // نوع الرسالة (مثلاً gang_id + 10)
+    int gang_id;      // رقم العصابة المعتقلة
+    int prison_time;  // مدة السجن بالثواني
+} PoliceMessage;
 
-#endif //NEW_FOLDER_2_POLICE_H
+#endif // POLICE_H
