@@ -9,11 +9,9 @@
 #include "config.h"
 #include "police.h"
 
-
 extern Config config;
-extern int msgid;  // يجب أن يكون معرف قائمة الرسائل مشترك
-extern SharedData* shared_data; // pointer للذاكرة المشتركة
-
+extern int msgid;
+extern SharedData* shared_data;
 
 void police_process(int msgid, SharedData* shared_data) {
     int* gang_alerts = calloc(config.max_gangs, sizeof(int));
@@ -21,6 +19,8 @@ void police_process(int msgid, SharedData* shared_data) {
     AgentReport* all_reports = malloc(sizeof(AgentReport) * config.max_reports);
     int total_reports = 0;
     printf("🚓 Police is collecting reports:\n");
+    printf("🔍 ]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]Debug: config.prison_duration = %d\n", config.prison_duration);
+
 
     AgentReport r;
     int ret = receive_agent_report(msgid, &r);
@@ -40,11 +40,10 @@ void police_process(int msgid, SharedData* shared_data) {
             break;
         }
 
-        printf("\nmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm\n");
         int ret = receive_agent_report(msgid, &r);
         if (ret == -1) {
-            // لا رسائل حالياً، ننتظر قليلاً ثم نكرر
-            usleep(500000); // 0.5 ثانية
+
+            usleep(500000);
             continue;
         }
         if (total_reports >= config.max_reports) break;
@@ -63,9 +62,9 @@ void police_process(int msgid, SharedData* shared_data) {
                    r.gang_id + 1, config.prison_duration);
             fflush(stdout);
 
+
             gang_in_prison[r.gang_id] = config.prison_duration;
 
-            // إرسال رسالة اعتقال للعصابة عبر رسالة IPC (نوع مميز: gang_id + 10)
             PoliceMessage pm;
             pm.mtype = r.gang_id + 10; // نوع رسالة خاص للعصابة
             pm.gang_id = r.gang_id;
@@ -75,13 +74,12 @@ void police_process(int msgid, SharedData* shared_data) {
                 perror("Failed to send police arrest message");
             }
         }
-        // تحديث مؤقت للسجن لكل عصابة (تنقص ثانية كل دورة)
         for (int i = 0; i < config.number_of_gangs; i++) {
             if (gang_in_prison[i] > 0) {
                 gang_in_prison[i]--;
                 if (gang_in_prison[i] == 0) {
                     printf("🔓 Gang %d is released from prison and can resume activity.\n", i + 1);
-                    gang_alerts[i] = 0; // تصفير التنبيهات بعد الإفراج
+                    gang_alerts[i] = 0;
                 }
             }
         }
@@ -89,15 +87,12 @@ void police_process(int msgid, SharedData* shared_data) {
             printf("Reached max reports, stopping police process.\n");
             running = 0;
         }
-
-        // أو تحقق شرط آخر:
         if (shared_data->stop_simulation_flag) {
             running = 0;
         }
 
         sleep(1);
     }
-    
     free(gang_alerts);
     free(gang_in_prison);
     free(all_reports);

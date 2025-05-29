@@ -13,6 +13,8 @@ max_failed_plans=4
 max_successful_plans=6
 max_executed_agents=3
 promotion_interval=10
+agent_discovery_chance=50
+
 false_info_probability=20
 minimum_succeeded=0.7
 max_gangs=10
@@ -24,7 +26,5 @@ max_successful_plans=10
 max_executed_agents=8
 max_captured_agents=5
 death_probability=5
-
-
 
 

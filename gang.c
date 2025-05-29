@@ -24,33 +24,35 @@ const char* TARGETS[] = {
 };
 
 #define NUM_TARGETS (sizeof(TARGETS) / sizeof(TARGETS[0]))
-void investigate_members(ThreadArg* args, int count, int semid, SharedData* shared_data, int* pending_replacements){
-for (int i = count - 1; i >= 0; i--) {
-    Member* m = &args[i].member;
+void investigate_members(ThreadArg* args, int count, int semid, SharedData* shared_data, int* pending_replacements) {
+    for (int i = count - 1; i >= 0; i--) {
+        Member* m = &args[i].member;
 
-    if (m->is_secret_agent) {
-       int chance = rand() % 100;
-if (chance < 50) {
-printf("🚨 Gang discovered Agent %d in Gang %d (Rank: %d)! Eliminating...\n",
-m->id + 1, m->gang_id + 1, m->rank);
+        if (m->is_secret_agent) {
+            int chance = rand() % 100;
+            if (chance < config.agent_discovery_chance) {
+                printf("🚨 Gang discovered Agent %d in Gang %d (Rank: %d)! Eliminating...\n",
+                       m->id + 1, m->gang_id + 1, m->rank);
 
-semaphore_wait(semid);
-shared_data->captured_agents++;
-semaphore_signal(semid);
+                semaphore_wait(semid);
+                shared_data->captured_agents++;
+                semaphore_signal(semid);
 
-m->executed = 1;
-(*pending_replacements)++;
-printf("💀 Agent %d in Gang %d has been EXECUTED immediately!\n",
-(int)m->id, (int)m->gang_id);
-printf("🛠️ DEBUG >> m pointer: %p | id: %d | gang: %d | executed: %d\n",
-(void*)m, m->id + 1, m->gang_id + 1, m->executed);
+                m->executed = 1;
+                (*pending_replacements)++;
 
+                printf("💀 Agent %d in Gang %d has been EXECUTED immediately!\n",
+                       m->id + 1, m->gang_id + 1);
 
-printf("🔄 Replacing Agent %d in Gang %d...\n", m->id + 1, m->gang_id + 1);
+                printf("🛠️ DEBUG >> m pointer: %p | id: %d | gang: %d | executed: %d\n",
+                       (void*)m, m->id + 1, m->gang_id + 1, m->executed);
+
+                printf("🔄 Replacing Agent %d in Gang %d...\n", m->id + 1, m->gang_id + 1);
+            }
+        }
+    }
 }
-}
-}
-}
+
 void wait_for_prison_release(int msgid, int gang_id) {
     PoliceMessage pm;
     ssize_t ret = msgrcv(msgid, &pm, sizeof(PoliceMessage) - sizeof(long), gang_id + 10, IPC_NOWAIT);
@@ -63,13 +65,18 @@ void wait_for_prison_release(int msgid, int gang_id) {
 void* member_thread(void* arg) {
     ThreadArg* t = (ThreadArg*)arg;
     Member* m = &t->member;
+    int* result = malloc(sizeof(int));
+    *result = 0;
+
     int required_preparation = t->required_preparation;
 // قبل أي تنفيذ أو أثناء المهمة
     int sudden_death = rand() % 100;
     if (sudden_death < config.death_probability) {
         printf("💀 Member %d in Gang %d DIED suddenly!\n", m->id + 1, m->gang_id + 1);
-        m->executed = 1;  // علامة على أنه مات
-        pthread_exit(NULL);  // يخرج فورًا من الحياة
+        m->executed = 1;
+        *result = 1;
+        free(arg);
+        return result;
     }
 
     printf("🔍 Member %d geng id %d :  Starting...\n", m->id + 1, m->gang_id + 1);
@@ -88,9 +95,10 @@ void* member_thread(void* arg) {
         int interactions = 0;
         int gathered_knowledge = 0;
 
-        ThreadArg* t = (ThreadArg*)arg;
-        Member* m = &t->member;
-        int required_preparation = t->required_preparation;
+        //ThreadArg* t = (ThreadArg*)arg;
+
+        //Member* m = &t->member;
+        //int required_preparation = t->required_preparation;
 
         printf("🔍 Member %d | Gang %d | Rank %d | Secret Agent: %s\n",
                m->id + 1, m->gang_id + 1, m->rank, m->is_secret_agent ? "YES" : "NO");
@@ -113,7 +121,6 @@ void* member_thread(void* arg) {
         printf("🤐 Suspicion: %d | Knowledge: %d (Agent %d in Gang %d)\n",
                suspicion, knowledge, m->id +1, m->gang_id + 1);
 
-
         if (suspicion >= config.suspicion_threshold) {  // ✅ الشرط المضاف
             AgentReport report;
             report.mtype = 1;
@@ -135,7 +142,12 @@ void* member_thread(void* arg) {
                m->id + 1, m->known_target,
                m->received_info_is_true ? "TRUSTED" : "DUBIOUS");
     }
-    pthread_exit(NULL);
+//    int* result = malloc(sizeof(int));
+ //   *result = m->executed;  // لاحظ: هذا 0 في البداية أو 1 إذا تم إعدامه
+
+    free(arg);
+    return result;
+
 }
 void maybe_promote(Member* m, int semid) {
     time_t now = time(NULL);
@@ -313,18 +325,26 @@ void create_gang(int gang_id, int semid, SharedData* shared_data) {
 
         // 6️⃣ إطلاق الخيوط
         for (int i = 0; i < member_count; i++) {
-            ThreadArg* t = malloc(sizeof(ThreadArg));
-            t->member = args[i].member;
-            t->required_preparation = args[i].required_preparation;
+//            ThreadArg* t = malloc(sizeof(ThreadArg));
+  //          t->member = args[i].member;
+    //        t->required_preparation = args[i].required_preparation;
 
            // pthread_create(&threads[i], NULL, member_thread, t);
-            pthread_create(&threads[i], NULL, member_thread, &args[i]);
-
+          //  pthread_create(&threads[i], NULL, member_thread, &args[i]);
+            ThreadArg* t = malloc(sizeof(ThreadArg));
+            *t = args[i];  // نسخ البيانات الحقيقية إلى نسخة مخصصة لكل خيط
+            pthread_create(&threads[i], NULL, member_thread, t);
 
 
         }
         for (int i = 0; i < member_count; i++) {
-            pthread_join(threads[i], NULL);
+            void* thread_result;
+            pthread_join(threads[i], &thread_result);
+
+            int executed_flag = *((int*)thread_result);
+            args[i].member.executed = executed_flag;
+
+            free(thread_result);  // لا تنسَ تحرير النتيجة
         }
 
 // 🔁 استبدال الأعضاء الذين تم إعدامهم بعض المهمة

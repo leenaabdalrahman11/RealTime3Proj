@@ -26,6 +26,8 @@ typedef struct {
  //   int false_info_probability;
     int max_reports;
     float minimum_succeeded; // ✅ جديد
+    int agent_discovery_chance;
+
 
 
 } Config;
